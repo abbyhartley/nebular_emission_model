@@ -1,23 +1,18 @@
 # sample selection function for DESI BGS galaxies used to train the model
+import numpy as np
 from __future__ import annotations
-
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional, Union
-
-import numpy as np
+from typing import Union
 
 try:
     from astropy.table import Table
-except ImportError:  # lets docs/import not hard-fail in some environments
+except ImportError:  
     Table = None
-
 
 DEFAULT_LINE_FLUX_COLS = ("OII_3726_FLUX", "OII_3729_FLUX",
     "HGAMMA_FLUX", "HBETA_FLUX", "HALPHA_FLUX",
-    "OIII_5007_FLUX", "NII_6584_FLUX",
-    "SII_6716_FLUX","SII_6731_FLUX")
-
+    "OIII_5007_FLUX", "NII_6584_FLUX", "SII_6716_FLUX", "SII_6731_FLUX")
 
 @dataclass(frozen=True)
 class DESISelectionConfig:
@@ -25,9 +20,8 @@ class DESISelectionConfig:
     require_spectype: str = "GALAXY"
     require_zwarn0: bool = True
     snr_min: float = 5.0
-    snr_col: str = "SNR_R"  
+    snr_col: str = "SNR_R"
     line_flux_cols: tuple[str, ...] = DEFAULT_LINE_FLUX_COLS
-
 
 def _as_table(data_or_filename: Union["Table", str, Path]):
     if Table is None:
@@ -36,11 +30,11 @@ def _as_table(data_or_filename: Union["Table", str, Path]):
         return data_or_filename
     return Table.read(str(data_or_filename))
 
-
 def desi_bgs_training_mask(
     data_or_filename: Union["Table", str, Path],
     config: DESISelectionConfig = DESISelectionConfig(),
-    *, return_table: bool = False):
+    *,
+    return_table: bool = False):
     """
     Build a boolean mask for your DESI BGS fastspecfit training sample.
 
@@ -50,6 +44,7 @@ def desi_bgs_training_mask(
       - Z > z_min
       - snr_col > snr_min
       - all emission line fluxes > 0 for config.line_flux_cols
+      - all of the above must be finite (no NaNs)
 
     Parameters
     ----------
@@ -80,19 +75,55 @@ def desi_bgs_training_mask(
 
     mask = np.ones(len(t), dtype=bool)
 
-    mask &= (np.asarray(t["SPECTYPE"]).astype(str) == config.require_spectype)
-    mask &= (np.asarray(t["Z"]) > config.z_min)
+    # SPECTYPE cut
+    spectype = np.asarray(t["SPECTYPE"]).astype(str)
+    mask &= (spectype == config.require_spectype)
 
+    # Z cut (+ finiteness)
+    z = np.asarray(t["Z"])
+    mask &= np.isfinite(z) & (z > config.z_min)
+
+    # ZWARN cut
     if config.require_zwarn0:
-        mask &= (np.asarray(t["ZWARN"]) == 0)
+        zwarn = np.asarray(t["ZWARN"])
+        # zwarn is typically integer; finiteness check is harmless
+        mask &= np.isfinite(zwarn) & (zwarn == 0)
 
-    # Median S/N cut
-    mask &= (np.asarray(t[config.snr_col]) > config.snr_min)
+    # S/N cut (+ finiteness)
+    snr = np.asarray(t[config.snr_col])
+    mask &= np.isfinite(snr) & (snr > config.snr_min)
 
-    # Emission line flux positivity cuts
+    # Emission line flux positivity cuts (+ finiteness)
     for col in config.line_flux_cols:
-        mask &= (np.asarray(t[col]) > 0)
+        x = np.asarray(t[col])
+        mask &= np.isfinite(x) & (x > 0)
 
     if return_table:
         return mask, t[mask]
     return mask
+
+def write_filtered_fits(infile: Union["Table", str, Path],
+    outfile: Union[str, Path],
+    config: DESISelectionConfig = DESISelectionConfig()):
+    """
+    Apply desi_bgs_training_mask and write the filtered table to a FITS file.
+
+    Parameters
+    ----------
+    infile : astropy.table.Table or path
+        Input table or FITS filename.
+    outfile : str or Path
+        Output FITS filename.
+    config : DESISelectionConfig
+        Selection thresholds and column names.
+
+    Returns
+    -------
+    n_selected : int
+        Number of rows passing the selection.
+    n_total : int
+        Total number of rows in the input table.
+    """
+    mask, tsel = desi_bgs_training_mask(infile, config, return_table=True)
+    tsel.write(str(outfile), overwrite=True)
+    return int(mask.sum()), int(len(mask))
