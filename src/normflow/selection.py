@@ -210,10 +210,13 @@ def training_mask(
     snr = np.asarray(table[col["snr_col"]])
     mask &= np.isfinite(snr) & (snr > config.snr_min)
 
-    # Line flux cuts
-    for c in col["line_flux_cols"]:
-        x = np.asarray(table[c])
-        mask &= np.isfinite(x) & (x > 0)
+    # Line flux cut: require only H-alpha > 0
+    ha_col = col.get("ha_flux_col", None)
+    if ha_col is None or ha_col not in table.colnames:
+        raise KeyError(f"Missing required H-alpha flux column for survey={config.survey}: {ha_col!r}")
+
+    ha = np.asarray(table[ha_col])
+    mask &= np.isfinite(ha) & (ha > 0)
 
     if return_table:
         return mask, table[mask]
