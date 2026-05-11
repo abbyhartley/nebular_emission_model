@@ -21,7 +21,7 @@ def restframe_color_gmr(m_g, m_r, distmod, k_g, k_r):
 
 def desi_to_sdss_gmr(gmr_desi):
     """
-    Your empirically derived mapping from cross-match:
+    Empirically derived mapping from cross-match:
       (g-r)_SDSS = 0.989*(g-r)_DESI - 0.104
     """
     gmr_desi = np.asarray(gmr_desi)
@@ -30,21 +30,19 @@ def desi_to_sdss_gmr(gmr_desi):
 
 def log10_ml_r_from_gmr_sdss(gmr_sdss):
     """
-    Your best-fit calibrated relation:
+    Best-fit calibrated relation:
       log10(M/L_r) = 1.062*(g-r)_SDSS - 0.555
     """
     gmr_sdss = np.asarray(gmr_sdss)
     return 1.062 * gmr_sdss - 0.555
 
 
-def log10_stellar_mass_color(
-    *,
+def log10_stellar_mass_color(*,
     survey: str,
     m_g, m_r,
     distmod,
     k_g, k_r,
-    Msun_r: float,
-):
+    Msun_r: float):
     """
     Color-based stellar mass using a single convention across surveys.
 

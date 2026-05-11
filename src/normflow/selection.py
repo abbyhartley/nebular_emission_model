@@ -14,7 +14,6 @@ Features
 Notes
 -----
 - The "survey" determines which columns are used for Z, ZWARN/Z_WARNING, SNR, and line fluxes.
-- The optional SPECTYPE cut is applied only if the spectype column exists.
 """
 
 from __future__ import annotations
@@ -40,8 +39,7 @@ SelectionVersion = Literal["v1"]
 
 # ---- Default line flux column names per survey ----
 
-DESI_LINE_FLUX_COLS = (
-    "OII_3726_FLUX",
+DESI_LINE_FLUX_COLS = ("OII_3726_FLUX",
     "OII_3729_FLUX",
     "HGAMMA_FLUX",
     "HBETA_FLUX",
@@ -49,12 +47,9 @@ DESI_LINE_FLUX_COLS = (
     "OIII_5007_FLUX",
     "NII_6584_FLUX",
     "SII_6716_FLUX",
-    "SII_6731_FLUX",
-)
+    "SII_6731_FLUX")
 
-# For your SDSS file: r-band list clearly shows these exist
-SDSS_LINE_FLUX_COLS = (
-    "OII_3726_FLUX",
+SDSS_LINE_FLUX_COLS = ("OII_3726_FLUX",
     "OII_3729_FLUX",
     "H_GAMMA_FLUX",
     "H_BETA_FLUX",
@@ -62,33 +57,27 @@ SDSS_LINE_FLUX_COLS = (
     "OIII_5007_FLUX",
     "NII_6584_FLUX",
     "SII_6717_FLUX",
-    "SII_6731_FLUX",
-)
+    "SII_6731_FLUX")
 
 
 # ---- Column mapping per survey ----
 
-SURVEY_COLMAP = {
-    "desi": dict(
-        z_col="Z",
+SURVEY_COLMAP = {"desi": dict(z_col="Z",
         zwarn_col="ZWARN",
         snr_col="SNR_R",
         spectype_col="SPECTYPE",
         line_flux_cols=DESI_LINE_FLUX_COLS,
         # convenience (not used in cuts directly, but helpful)
         logm_col="LOGMSTAR",
-        ha_flux_col="HALPHA_FLUX",
-    ),
+        ha_flux_col="HALPHA_FLUX"),
     "sdss": dict(
         z_col="Z_1",
         zwarn_col="Z_WARNING",
-        snr_col="SN_MEDIAN",   # you stated this; confirm it exists in your SDSS file
-        spectype_col="SPECTROTYPE",  # appears in your SDSS r-band list
+        snr_col="SN_MEDIAN",   
+        spectype_col="SPECTROTYPE", 
         line_flux_cols=SDSS_LINE_FLUX_COLS,
         logm_col="LGM_TOT_P50",
-        ha_flux_col="H_ALPHA_FLUX",
-    ),
-}
+        ha_flux_col="H_ALPHA_FLUX")}
 
 
 @dataclass(frozen=True)
@@ -99,7 +88,7 @@ class SelectionConfig:
     # cut thresholds
     z_min: float = 0.05
     snr_min: float = 5.0
-    require_zwarn0: bool = True
+    require_zwarn0: bool = True # only use sources w/ trustworthy redshifts
 
     # Optional spectype cut (applied only if column exists and require_spectype is not None)
     require_spectype: Optional[str] = "GALAXY"
@@ -123,7 +112,6 @@ def _resolved_config(cfg: SelectionConfig) -> dict:
         raise ValueError(f"Unknown survey={cfg.survey!r}. Choose from {list(SURVEY_COLMAP)}")
 
     base = dict(SURVEY_COLMAP[cfg.survey])
-
     base["z_col"] = cfg.z_col or base["z_col"]
     base["zwarn_col"] = cfg.zwarn_col or base["zwarn_col"]
     base["snr_col"] = cfg.snr_col or base["snr_col"]
@@ -140,13 +128,11 @@ def get_selection_config(version: SelectionVersion = "v1", *, survey: Survey = "
     Extend this over time: add 'v2', 'v3', etc. with different thresholds/cuts.
     """
     if version == "v1":
-        return SelectionConfig(
-            survey=survey,
+        return SelectionConfig(survey=survey,
             z_min=0.05,
             snr_min=5.0,
             require_zwarn0=True,
-            require_spectype="GALAXY",
-        )
+            require_spectype="GALAXY")
     raise ValueError(f"Unknown version={version!r}")
 
 
@@ -168,12 +154,10 @@ def _iter_table_hdus(filename: Union[str, Path]):
             yield hdu, t
 
 
-def training_mask(
-    table: "Table",
+def training_mask(table: "Table",
     config: SelectionConfig,
     *,
-    return_table: bool = False,
-):
+    return_table: bool = False):
     """
     Build a boolean mask for a single astropy Table using survey-aware columns.
     """
@@ -191,7 +175,7 @@ def training_mask(
 
     mask = np.ones(len(table), dtype=bool)
 
-    # Optional spectype cut
+    # spectype cut
     spec_col = col["spectype_col"]
     if config.require_spectype is not None and spec_col in table.colnames:
         spectype = np.asarray(table[spec_col]).astype(str)
@@ -223,14 +207,12 @@ def training_mask(
     return mask
 
 
-def write_filtered_fits_any(
-    infile: Union[str, Path],
+def write_filtered_fits_any(infile: Union[str, Path],
     outfile: Union[str, Path],
     config: SelectionConfig,
     *,
     verbose: bool = True,
-    add_src_hdu_col: bool = True,
-):
+    add_src_hdu_col: bool = True):
     """
     Apply selection to *all* table HDUs found in infile (1 or many), stack selected rows,
     and write to outfile.
