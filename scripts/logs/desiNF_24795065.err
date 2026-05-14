@@ -1,0 +1,8 @@
+The following modules were not unloaded:
+  (Use "module --force purge" to unload all):
+
+  1) devel   2) math
+Traceback (most recent call last):
+  File "/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/nebular_emission_model/scripts/eval_nf_summarystats.py", line 294, in <module>
+    sys.path.insert(0, str(REPO / "src"))
+NameError: name 'sys' is not defined
