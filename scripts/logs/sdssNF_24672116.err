@@ -1,0 +1,15 @@
+The following modules were not unloaded:
+  (Use "module --force purge" to unload all):
+
+  1) devel   2) math
+Traceback (most recent call last):
+  File "/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/nebular_emission_model/scripts/train_nf_sdss.py", line 191, in <module>
+    main()
+  File "/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/nebular_emission_model/scripts/train_nf_sdss.py", line 123, in main
+    df = t.to_pandas()
+  File "/home/users/hartley1/miniconda3/envs/desi_nf/lib/python3.10/site-packages/astropy/table/table.py", line 4128, in to_pandas
+    raise ValueError(
+ValueError: Cannot convert a table with multidimensional columns to a pandas DataFrame. Offending columns are: ['PHOTOID', 'PLUG_MAG', 'SPECTRO_MAG', 'KCOR_MAG', 'KCOR_MODEL_MAG']
+One can filter out such columns using:
+names = [name for name in tbl.colnames if len(tbl[name].shape) <= 1]
+tbl[names].to_pandas(...)

@@ -1,0 +1,42 @@
+
+=== Evaluating on SDSS ===
+Catalog: /oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/SDSS_main_training_data.fits
+N after masks: 149913
+Using n_mc = 50
+Line         RMSE(dex)   Bias(dex)  Scatter(dex)  Spearman rho
+Hbeta           0.1420     -0.0101        0.0813        0.9764
+Hgamma          0.2330     -0.0218        0.1423        0.9201
+NII6584         0.1500      0.0082        0.1140        0.9500
+SII671x         0.1909     -0.0054        0.1199        0.9268
+SII6731         0.2286     -0.0045        0.1370        0.9130
+OII3726         0.2971     -0.0245        0.2338        0.8106
+OII3729         0.2850     -0.0254        0.2291        0.8124
+OIII5007        0.3207      0.0172        0.2642        0.7470
+
+ALL LINES concatenated:
+RMSE(dex):    0.2392525207130164
+Bias(dex):    -0.007951127655609014
+Scatter(dex): 0.16104611353904985
+Spearman rho: 0.9009105409482018
+
+=== Evaluating on DESI ===
+Catalog: /oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/DESI_BGS_training_data.fits
+N after masks: 733630
+Using n_mc = 50
+Line         RMSE(dex)   Bias(dex)  Scatter(dex)  Spearman rho
+Hbeta           0.6392      0.0490        0.1794        0.9204
+Hgamma          0.7530      0.0586        0.3562        0.7413
+NII6584         0.4679     -0.2668        0.2462        0.8802
+SII671x         0.4301     -0.0896        0.2033        0.8941
+SII6731         0.9870     -0.0767        0.2340        0.8737
+OII3726         1.0909      0.1272        0.4793        0.6884
+OII3729         0.5080     -0.0137        0.4307        0.6918
+OIII5007        0.6624      0.2326        0.5953        0.6163
+
+ALL LINES concatenated:
+RMSE(dex):    0.7280435856066966
+Bias(dex):    -0.017489614105762996
+Scatter(dex): 0.37470205533721523
+Spearman rho: 0.783554826589845
+
+Wrote metrics to: /oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/nebular_emission_model/nf_sdss_eval_metrics.csv
