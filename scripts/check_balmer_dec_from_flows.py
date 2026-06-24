@@ -1,4 +1,7 @@
 # check_balmer_decrement_from_flows.py  (fixed LOG_LHA)
+# Review item 2.10: also SAVE the in-survey and cross-survey Balmer-decrement
+# floor-violation rates [frac(R<2.86)] to a summary CSV, so the in-survey rate
+# can be cited as a baseline for the cross-survey excess.
 from pathlib import Path
 import pickle
 import numpy as np
@@ -28,6 +31,9 @@ META_DESI = Path("/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/nebular_emiss
 FLUX_SCALE = 1e-17
 N_SAMP = 100_000
 SEED = 0
+
+# collect one summary row per distribution we summarize
+_SUMMARY_ROWS = []
 
 
 def load_scalar_df(fits_path):
@@ -79,7 +85,6 @@ def sample_log_ratios(flow, meta, df_cond, *, seed=0):
     logm_col = meta["resolved"]["logmstar_col"]   # LOGM_COLOR
     loglha_col = meta["resolved"]["loglha_col"]   # LOG_LHA
 
-    # require finite conditioning
     m = np.isfinite(df_cond[logm_col].to_numpy(float)) & np.isfinite(df_cond[loglha_col].to_numpy(float))
     df = df_cond.loc[m].reset_index(drop=True)
 
@@ -98,7 +103,7 @@ def sample_log_ratios(flow, meta, df_cond, *, seed=0):
     ratios = Xn * meta["X_std"] + meta["X_mean"]  # (N,8)
     return ratios
 
-def summarize(name, R):
+def summarize(name, R, *, kind="", train="", cond=""):
     R = np.asarray(R, float)
     R = R[np.isfinite(R)]
     p1, p16, p50, p84, p99 = np.percentile(R, [1, 16, 50, 84, 99])
@@ -108,6 +113,11 @@ def summarize(name, R):
     print(f"N={len(R):,}")
     print(f"p1/p16/p50/p84/p99 = {p1:.3f} / {p16:.3f} / {p50:.3f} / {p84:.3f} / {p99:.3f}")
     print(f"frac(R<2.86)={frac_lt_2p86:.3%}  frac(R>5)={frac_gt_5:.3%}")
+    _SUMMARY_ROWS.append(dict(
+        label=name, kind=kind, train=train, cond=cond, n=len(R),
+        p1=p1, p16=p16, p50=p50, p84=p84, p99=p99,
+        frac_lt_2p86=frac_lt_2p86, frac_gt_5=frac_gt_5,
+    ))
 
 def observed_balmer_sdss(df):
     ha = df["H_ALPHA_FLUX"].to_numpy(float)
@@ -127,14 +137,12 @@ def observed_balmer_desi(df):
 
 
 def main():
-    # Load + add LOG_LHA
     df_sdss = add_loglha(thin_df(load_scalar_df(SDSS_FITS), N_SAMP, seed=SEED), survey="sdss")
     df_desi = add_loglha(thin_df(load_scalar_df(DESI_FITS), N_SAMP, seed=SEED+1), survey="desi")
 
-    summarize("Observed SDSS (Hα/Hβ)", observed_balmer_sdss(df_sdss))
-    summarize("Observed DESI (Hα/Hβ)", observed_balmer_desi(df_desi))
+    summarize("Observed SDSS (Ha/Hb)", observed_balmer_sdss(df_sdss), kind="observed", train="-", cond="sdss")
+    summarize("Observed DESI (Ha/Hb)", observed_balmer_desi(df_desi), kind="observed", train="-", cond="desi")
 
-    # Load flows + metas
     with open(META_SDSS, "rb") as f:
         meta_sdss = pickle.load(f)
     with open(META_DESI, "rb") as f:
@@ -143,7 +151,6 @@ def main():
     flow_sdss = load_flow(FLOW_SDSS, meta_sdss)
     flow_desi = load_flow(FLOW_DESI, meta_desi)
 
-    # Sample ratios at native conditions
     ratios_sdss = sample_log_ratios(flow_sdss, meta_sdss, df_sdss, seed=SEED+10)
     ratios_desi = sample_log_ratios(flow_desi, meta_desi, df_desi, seed=SEED+20)
 
@@ -153,24 +160,30 @@ def main():
     R_sdss_nf = 10.0 ** (-ratios_sdss[:, i_hb_sdss])
     R_desi_nf = 10.0 ** (-ratios_desi[:, i_hb_desi])
 
-    summarize("NF samples: SDSS-trained (conditioned on SDSS)", R_sdss_nf)
-    summarize("NF samples: DESI-trained (conditioned on DESI)", R_desi_nf)
+    # IN-SURVEY (review 2.10 baseline)
+    summarize("NF samples: SDSS-trained (conditioned on SDSS)", R_sdss_nf, kind="nf_insurvey", train="sdss", cond="sdss")
+    summarize("NF samples: DESI-trained (conditioned on DESI)", R_desi_nf, kind="nf_insurvey", train="desi", cond="desi")
 
-    # Optional: cross-survey Balmer decrement (often revealing)
+    # CROSS-SURVEY
     ratios_sdss_on_desi = sample_log_ratios(flow_sdss, meta_sdss, df_desi, seed=SEED+30)
     ratios_desi_on_sdss = sample_log_ratios(flow_desi, meta_desi, df_sdss, seed=SEED+40)
     R_sdss_on_desi = 10.0 ** (-ratios_sdss_on_desi[:, i_hb_sdss])
     R_desi_on_sdss = 10.0 ** (-ratios_desi_on_sdss[:, i_hb_desi])
 
-    summarize("NF samples: SDSS-trained (conditioned on DESI)", R_sdss_on_desi)
-    summarize("NF samples: DESI-trained (conditioned on SDSS)", R_desi_on_sdss)
+    summarize("NF samples: SDSS-trained (conditioned on DESI)", R_sdss_on_desi, kind="nf_crosssurvey", train="sdss", cond="desi")
+    summarize("NF samples: DESI-trained (conditioned on SDSS)", R_desi_on_sdss, kind="nf_crosssurvey", train="desi", cond="sdss")
 
-    out = pd.DataFrame({
-        "R_sdss_obs": observed_balmer_sdss(df_sdss),
-        "R_desi_obs": observed_balmer_desi(df_desi),
-    })
+    out = pd.concat([
+        pd.Series(observed_balmer_sdss(df_sdss), name="R_sdss_obs"),
+        pd.Series(observed_balmer_desi(df_desi), name="R_desi_obs"),
+    ], axis=1)
     out.to_csv("balmer_obs_samples.csv", index=False)
+
+    summary = pd.DataFrame(_SUMMARY_ROWS)
+    summary_path = Path("/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/nebular_emission_model/balmer_floor_summary.csv")
+    summary.to_csv(summary_path, index=False)
     print("\nWrote: balmer_obs_samples.csv")
+    print("Wrote:", summary_path)
 
 
 if __name__ == "__main__":

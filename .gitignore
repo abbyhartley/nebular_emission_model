@@ -31,3 +31,6 @@ nf_*_v2.eqx
 nf_*_v1.pkl
 nf_*_v2.pkl
 nf_*_HAscale*
+
+# generated raw Balmer samples (regenerable)
+balmer_obs_samples.csv
