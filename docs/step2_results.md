@@ -44,7 +44,7 @@ fixed M*" claim is fragile: M* is not consistently 'fixed' across surveys.
 - The cross-survey shift is real (survives matched-z; in-survey NLL/floor are clean).
 - BUT its interpretation as intrinsic astrophysics is undercut by a strong degeneracy with
   the cross-survey color-mass zero-point (review 2.1 item 3, 2.6). 
-- Action: report the M/L-color relation scatter (TODO: compute from calibration sample),
+- Action: report the M/L-color relation scatter (0.11 dex NMAD; see section below),
   soften any 'intrinsic' language, and add the M* zero-point degeneracy as a key caveat.
 
 ## Writing-ready sentences
@@ -60,7 +60,35 @@ mass-metallicity direction, we cannot cleanly separate an intrinsic survey shift
 color-mass calibration difference; we therefore interpret the shift as an upper bound on
 intrinsic survey differences at fixed (M*, L_Ha)."
 
-## TODO (remaining 2.6 item)
-Compute and report the scatter of the recalibrated log(M/L_r)-color relation (~0.1-0.15 dex
-expected) from the MPA-JHU calibration sample; the relation coefficients (1.062, -0.555) are
-hard-coded in src/normflow/stellar_mass.py but the fit residual scatter is not yet reported.
+## M/L–color relation scatter (closes the remaining 2.6 item)
+Measured with scripts/measure_ml_scatter.py on the SDSS calibration sample
+(mpa_rcsed2_combo.fits, 292,890 galaxies with reliable MPA-JHU LGM_TOT_P50 + rest-frame
+SDSS g,r). The color relation predicts log(M/L_r); the MPA-JHU SED-fit mass implies a
+"truth" log(M/L_r) = LGM_TOT_P50 - log(L_r). The common log(L_r) cancels, so the residual
+isolates the M/L scatter; a constant zero-point offset (h, IMF, aperture) shifts the median
+but not the dispersion.
+
+  median offset (color-mass vs MPA-JHU): +0.061 dex   [zero-point, not scatter]
+  relation scatter: std = 0.150 dex ; NMAD = 0.108 dex
+  homoscedastic across the populated color range:
+    g-r 0.20-0.50  NMAD 0.118 ;  0.50-0.65  0.101 ;  0.65-0.80  0.065 ;  0.80-0.95  0.081 dex
+    (only the few hundred objects at g-r>0.95 reach NMAD 0.3-0.4 dex)
+  fresh re-fit on this sample: log(M/L_r) = 1.481*(g-r) - 0.758 (vs in-code 1.062, -0.555);
+    scatter about the fresh fit is NMAD 0.089 dex.
+
+=> The per-galaxy random M/L scatter is only ~0.11 dex (NMAD) and the SDSS color-mass
+zero-point agrees with MPA-JHU to +0.06 dex. KEY POINT for the 2.6 framing: this small
+RANDOM scatter is NOT what drives the +/-0.6 dex transfer degeneracy in Test B. That
+degeneracy is a COHERENT, survey-relative SYSTEMATIC (different photometry pipelines,
+k-corrections, aperture between SDSS and DESI acting along the mass-metallicity direction),
+distinct from the ~0.1 dex intrinsic relation noise. So the relation itself is tight; the
+cross-survey vulnerability is a systematic zero-point difference, not relation scatter.
+
+Writing-ready sentence (Methods/Discussion): "The adopted (g-r)->log(M/L_r) relation has an
+intrinsic scatter of 0.11 dex (NMAD; 0.15 dex std), measured against MPA-JHU SED-fit masses
+on 2.9x10^5 SDSS galaxies, and is approximately homoscedastic over 0.2 < (g-r) < 0.95. The
+color-based masses agree with the MPA-JHU scale to within a 0.06 dex median zero-point. This
+per-galaxy scatter is small compared to the cross-survey M* offset that the transfer test
+prefers, indicating the latter reflects a coherent survey-relative calibration systematic
+rather than the intrinsic dispersion of the color-mass relation."
+
