@@ -1,20 +1,19 @@
 """
 Sample selection utilities for DESI BGS / SDSS (MPA-JHU / RCSED2-like) tables.
 
-Now includes:
-- per-emission-line S/N cuts for the 8 target lines + Hα
-
-DESI S/N definition:
-    snr_line = FLUX * sqrt(FLUX_IVAR)   (requires *_FLUX_IVAR columns)
-
-SDSS S/N definition:
-    snr_line = FLUX / FLUX_ERR          (requires *_FLUX_ERR columns)
+Features
+--------
+- Versioned selection configs (choose different cut-sets by name)
+- Survey-aware column mapping (DESI vs SDSS) with sensible defaults
+- Works on:
+    * a single astropy Table
+    * a single-HDU FITS (table in HDU 1, typically)
+    * a multi-HDU FITS (loops over all table HDUs)
+- Writes one stacked output FITS table, optionally with provenance column SRC_HDU
 
 Notes
 -----
-- Per-line cuts are applied to *all* line_flux_cols listed for the survey config.
-- By default, this includes Hα.
-- Also requires flux > 0 for each line being S/N-cut (so log ratios are defined later).
+- The "survey" determines which columns are used for Z, ZWARN/Z_WARNING, SNR, and line fluxes.
 """
 
 from __future__ import annotations
@@ -40,8 +39,7 @@ SelectionVersion = Literal["v1"]
 
 # ---- Default line flux column names per survey ----
 
-DESI_LINE_FLUX_COLS = (
-    "OII_3726_FLUX",
+DESI_LINE_FLUX_COLS = ("OII_3726_FLUX",
     "OII_3729_FLUX",
     "HGAMMA_FLUX",
     "HBETA_FLUX",
@@ -49,11 +47,9 @@ DESI_LINE_FLUX_COLS = (
     "OIII_5007_FLUX",
     "NII_6584_FLUX",
     "SII_6716_FLUX",
-    "SII_6731_FLUX",
-)
+    "SII_6731_FLUX")
 
-SDSS_LINE_FLUX_COLS = (
-    "OII_3726_FLUX",
+SDSS_LINE_FLUX_COLS = ("OII_3726_FLUX",
     "OII_3729_FLUX",
     "H_GAMMA_FLUX",
     "H_BETA_FLUX",
@@ -61,63 +57,48 @@ SDSS_LINE_FLUX_COLS = (
     "OIII_5007_FLUX",
     "NII_6584_FLUX",
     "SII_6717_FLUX",
-    "SII_6731_FLUX",
-)
+    "SII_6731_FLUX")
 
 
 # ---- Column mapping per survey ----
 
-SURVEY_COLMAP = {
-    "desi": dict(
-        z_col="Z",
+SURVEY_COLMAP = {"desi": dict(z_col="Z",
         zwarn_col="ZWARN",
         snr_col="SNR_R",
         spectype_col="SPECTYPE",
         line_flux_cols=DESI_LINE_FLUX_COLS,
-        # used for legacy checks; keep for clarity
-        ha_flux_col="HALPHA_FLUX",
-        # line uncertainty naming convention
-        line_ivar_suffix="_IVAR",  # e.g., HBETA_FLUX + _IVAR -> HBETA_FLUX_IVAR
-        line_err_suffix=None,
-    ),
+        # convenience (not used in cuts directly, but helpful)
+        logm_col="LOGMSTAR",
+        ha_flux_col="HALPHA_FLUX"),
     "sdss": dict(
         z_col="Z_1",
         zwarn_col="Z_WARNING",
-        snr_col="SN_MEDIAN",
-        spectype_col="SPECTROTYPE",
+        snr_col="SN_MEDIAN",   
+        spectype_col="SPECTROTYPE", 
         line_flux_cols=SDSS_LINE_FLUX_COLS,
-        ha_flux_col="H_ALPHA_FLUX",
-        # SDSS uncertainty naming convention
-        line_ivar_suffix=None,
-        line_err_suffix="_ERR",  # e.g., H_ALPHA_FLUX + _ERR -> H_ALPHA_FLUX_ERR
-    ),
-}
+        logm_col="LGM_TOT_P50",
+        ha_flux_col="H_ALPHA_FLUX")}
 
 
 @dataclass(frozen=True)
 class SelectionConfig:
+    # which column mapping to use
     survey: Survey = "desi"
 
-    # global cuts
+    # cut thresholds
     z_min: float = 0.05
     snr_min: float = 5.0
-    require_zwarn0: bool = True
+    require_zwarn0: bool = True # only use sources w/ trustworthy redshifts
+
+    # Optional spectype cut (applied only if column exists and require_spectype is not None)
     require_spectype: Optional[str] = "GALAXY"
 
-    # NEW: per-line S/N cut
-    require_line_snr: bool = True
-    line_snr_min: float = 5.0  # per emission line
-
-    # Column overrides (optional)
+    # Column overrides (if None, use survey defaults)
     z_col: Optional[str] = None
     zwarn_col: Optional[str] = None
     snr_col: Optional[str] = None
     spectype_col: Optional[str] = None
     line_flux_cols: Optional[tuple[str, ...]] = None
-
-    # Optional overrides for uncertainty conventions
-    line_ivar_suffix: Optional[str] = None
-    line_err_suffix: Optional[str] = None
 
 
 def _require_astropy():
@@ -126,6 +107,7 @@ def _require_astropy():
 
 
 def _resolved_config(cfg: SelectionConfig) -> dict:
+    """Resolve survey defaults + user overrides into a concrete mapping."""
     if cfg.survey not in SURVEY_COLMAP:
         raise ValueError(f"Unknown survey={cfg.survey!r}. Choose from {list(SURVEY_COLMAP)}")
 
@@ -135,27 +117,31 @@ def _resolved_config(cfg: SelectionConfig) -> dict:
     base["snr_col"] = cfg.snr_col or base["snr_col"]
     base["spectype_col"] = cfg.spectype_col or base["spectype_col"]
     base["line_flux_cols"] = cfg.line_flux_cols or base["line_flux_cols"]
-    base["line_ivar_suffix"] = cfg.line_ivar_suffix if cfg.line_ivar_suffix is not None else base.get("line_ivar_suffix", None)
-    base["line_err_suffix"] = cfg.line_err_suffix if cfg.line_err_suffix is not None else base.get("line_err_suffix", None)
 
     return base
 
 
 def get_selection_config(version: SelectionVersion = "v1", *, survey: Survey = "desi") -> SelectionConfig:
+    """
+    Versioned selection configs.
+
+    Extend this over time: add 'v2', 'v3', etc. with different thresholds/cuts.
+    """
     if version == "v1":
-        return SelectionConfig(
-            survey=survey,
+        return SelectionConfig(survey=survey,
             z_min=0.05,
             snr_min=5.0,
             require_zwarn0=True,
-            require_spectype="GALAXY",
-            require_line_snr=True,
-            line_snr_min=5.0,
-        )
+            require_spectype="GALAXY")
     raise ValueError(f"Unknown version={version!r}")
 
 
 def _iter_table_hdus(filename: Union[str, Path]):
+    """
+    Yield (hdu_index, Table) for each table HDU in a FITS file.
+
+    Works for both single-HDU-table files and multi-HDU-table files.
+    """
     _require_astropy()
     filename = str(filename)
 
@@ -168,63 +154,20 @@ def _iter_table_hdus(filename: Union[str, Path]):
             yield hdu, t
 
 
-def _line_snr_mask(table: "Table", line_flux_col: str, *, ivar_suffix: str | None, err_suffix: str | None, snr_min: float):
+def training_mask(table: "Table",
+    config: SelectionConfig,
+    *,
+    return_table: bool = False):
     """
-    Build mask for a single line requiring:
-      - finite flux
-      - flux > 0
-      - finite uncertainty
-      - SNR > snr_min
-
-    Uses ivar if provided else err if provided.
+    Build a boolean mask for a single astropy Table using survey-aware columns.
     """
-    flux = np.asarray(table[line_flux_col])
-
-    m = np.isfinite(flux) & (flux > 0)
-
-    if ivar_suffix is not None:
-        ivar_col = line_flux_col + ivar_suffix
-        if ivar_col not in table.colnames:
-            raise KeyError(f"Missing IVAR column {ivar_col} required for per-line S/N cut.")
-        ivar = np.asarray(table[ivar_col])
-        m &= np.isfinite(ivar) & (ivar > 0)
-        snr = flux * np.sqrt(ivar)
-        m &= np.isfinite(snr) & (snr > snr_min)
-        return m
-
-    if err_suffix is not None:
-        err_col = line_flux_col + err_suffix
-        if err_col not in table.colnames:
-            raise KeyError(f"Missing ERR column {err_col} required for per-line S/N cut.")
-        err = np.asarray(table[err_col])
-        m &= np.isfinite(err) & (err > 0)
-        snr = flux / err
-        m &= np.isfinite(snr) & (snr > snr_min)
-        return m
-
-    raise ValueError("Need either ivar_suffix or err_suffix to compute per-line S/N.")
-
-
-def training_mask(table: "Table", config: SelectionConfig, *, return_table: bool = False):
     _require_astropy()
     col = _resolved_config(config)
 
+    # Required columns
     required = [col["z_col"], col["snr_col"]] + list(col["line_flux_cols"])
     if config.require_zwarn0:
         required.append(col["zwarn_col"])
-
-    # If per-line SNR is enabled, also require the corresponding uncertainty columns exist.
-    if config.require_line_snr:
-        ivs = col.get("line_ivar_suffix", None)
-        ers = col.get("line_err_suffix", None)
-        if ivs is None and ers is None:
-            raise ValueError(f"require_line_snr=True but no uncertainty suffix configured for survey={config.survey}")
-
-        for lf in col["line_flux_cols"]:
-            if ivs is not None:
-                required.append(lf + ivs)
-            if ers is not None:
-                required.append(lf + ers)
 
     missing = [c for c in required if c not in table.colnames]
     if missing:
@@ -242,35 +185,42 @@ def training_mask(table: "Table", config: SelectionConfig, *, return_table: bool
     z = np.asarray(table[col["z_col"]])
     mask &= np.isfinite(z) & (z > config.z_min)
 
-    # ZWARN cut
+    # ZWARN/Z_WARNING cut
     if config.require_zwarn0:
         zw = np.asarray(table[col["zwarn_col"]])
         mask &= np.isfinite(zw) & (zw == 0)
 
-    # Global continuum SNR cut (kept as before)
+    # SNR cut
     snr = np.asarray(table[col["snr_col"]])
     mask &= np.isfinite(snr) & (snr > config.snr_min)
 
-    # Per-line SNR cut (NEW)
-    if config.require_line_snr:
-        ivs = col.get("line_ivar_suffix", None)
-        ers = col.get("line_err_suffix", None)
-        for lf in col["line_flux_cols"]:
-            mask &= _line_snr_mask(table, lf, ivar_suffix=ivs, err_suffix=ers, snr_min=config.line_snr_min)
+    # Line flux cut: require only H-alpha > 0
+    ha_col = col.get("ha_flux_col", None)
+    if ha_col is None or ha_col not in table.colnames:
+        raise KeyError(f"Missing required H-alpha flux column for survey={config.survey}: {ha_col!r}")
+
+    ha = np.asarray(table[ha_col])
+    mask &= np.isfinite(ha) & (ha > 0)
 
     if return_table:
         return mask, table[mask]
     return mask
 
 
-def write_filtered_fits_any(
-    infile: Union[str, Path],
+def write_filtered_fits_any(infile: Union[str, Path],
     outfile: Union[str, Path],
     config: SelectionConfig,
     *,
     verbose: bool = True,
-    add_src_hdu_col: bool = True,
-):
+    add_src_hdu_col: bool = True):
+    """
+    Apply selection to *all* table HDUs found in infile (1 or many), stack selected rows,
+    and write to outfile.
+
+    Returns
+    -------
+    n_selected_total, n_total
+    """
     _require_astropy()
 
     selected_tables: list[Table] = []

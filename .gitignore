@@ -10,3 +10,24 @@ results/
 *.pdf
 *.npy
 *.npz
+
+# Slurm job logs / output
+logs/
+**/logs/
+*.out
+*.err
+
+# Python build artifacts
+*.egg-info/
+
+# Large data catalogs (keep the .py scripts in scripts/UM_comp/)
+*.parquet
+scripts/UM_comp/sfh_catalog_*.txt
+scripts/UM_comp/um_*.csv
+
+# Superseded / experimental model versions (keep current nf_desi_bgs + nf_sdss_main)
+nf_*_v1.eqx
+nf_*_v2.eqx
+nf_*_v1.pkl
+nf_*_v2.pkl
+nf_*_HAscale*

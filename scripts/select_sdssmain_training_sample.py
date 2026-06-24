@@ -6,10 +6,10 @@ sys.path.insert(0, str(REPO / "src"))   # <-- critical
 
 from normflow.selection import get_selection_config, write_filtered_fits_any
 
-infile = Path("/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/fastspec_zall_combined.fits")
-outfile = Path("/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/fastspec_zall_combined_selected_test.fits")
+infile = Path("/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/mpa_rcsed2_combo.fits")
+outfile = Path("/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/mpa_rcsed2_combo_selected.fits")
 
-cfg = get_selection_config("v1", survey="desi")
+cfg = get_selection_config("v1", survey="sdss")
 
 nsel, ntot = write_filtered_fits_any(
     infile,

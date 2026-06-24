@@ -8,7 +8,7 @@ sys.path.insert(0, str(REPO / "src"))
 
 from normflow.stellar_mass import desi_to_sdss_gmr, log10_ml_r_from_gmr_sdss
 
-infile = Path("/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/fastspec_zall_combined_selected_test.fits")
+infile = Path("/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/fastspec_zall_combined_selected.fits")
 outfile = Path("/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/DESI_BGS_training_data.fits")
 
 t = Table.read(infile, hdu=1)

@@ -9,7 +9,7 @@ sys.path.insert(0, str(REPO / "src"))
 
 from normflow.stellar_mass import log10_ml_r_from_gmr_sdss
 
-infile = Path("/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/mpa_rcsed2_combo_selected_test.fits")
+infile = Path("/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/mpa_rcsed2_combo_selected.fits")
 outfile = Path("/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/SDSS_main_training_data.fits")
 
 t = Table.read(infile, hdu=1)

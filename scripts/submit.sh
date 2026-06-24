@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=desiNF
-#SBATCH --output=logs/desiNF_%j.out
-#SBATCH --error=logs/desiNF_%j.err
+#SBATCH --job-name=flux
+#SBATCH --output=logs/flux_%j.out
+#SBATCH --error=logs/flux_%j.err
 #SBATCH --partition=serc
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -15,4 +15,7 @@ source $HOME/miniconda3/etc/profile.d/conda.sh
 conda activate desi_nf
 cd /oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/nebular_emission_model/scripts
 
-python eval_nf_summarystats_NLL_sdss.py
+python fit_all_flux_mapping_desi_to_sdss.py
+# python check_balmer_dec_from_flows.py
+# python add_colorSM_to_desifits_andrescale_fluxes.py
+# python train_nf_desi.py
