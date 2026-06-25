@@ -125,15 +125,16 @@ def main():
         "grid.alpha": 0.25,
         "axes.titlesize": 15,
         "axes.labelsize": 16,
-        "legend.fontsize": 15,
+        "legend.fontsize": 13,
         "xtick.labelsize": 13,
         "ytick.labelsize": 13,
     })
     # Color encodes survey (colorblind friendly; pink shared with the BPT figure):
-    #   DESI = deep purple, SDSS = pink. Within a panel, the observed data (fill) and the
+    #   DESI = blue-violet, SDSS = pink. Within a panel, the observed data (fill) and the
     #   native in-survey flow (solid) take the panel-survey color; the foreign cross-survey
-    #   flow (dashed) takes the other survey's color.
-    C_DESI = "#5E3C99"   # deep purple
+    #   flow (dashed) takes the other survey's color. The blue-violet is kept well separated
+    #   from the pink for colorblind readability.
+    C_DESI = "#3B4CC0"   # blue-violet
     C_SDSS = "#CC79A7"   # pink
 
     bins = np.linspace(1.5, 8.0, 70)
@@ -149,12 +150,12 @@ def main():
     ]
     for ax, (cond, k_obs, k_in, k_cross, l_obs, l_in, l_cross, c_obs, c_in, c_cross) in zip(axes, panels):
         ax.hist(R[k_obs], bins=bins, density=True, histtype="stepfilled",
-                facecolor=c_obs, edgecolor=c_obs, alpha=0.30, lw=1.4,
+                facecolor=c_obs, edgecolor=c_obs, alpha=0.30, lw=1.8,
                 label=f"{l_obs} ({frac_floor(R[k_obs]):.1%})")
         ax.hist(R[k_in], bins=bins, density=True, histtype="step",
-                color=c_in, lw=2.0, label=f"{l_in} ({frac_floor(R[k_in]):.1%})")
+                color=c_in, lw=2.6, label=f"{l_in} ({frac_floor(R[k_in]):.1%})")
         ax.hist(R[k_cross], bins=bins, density=True, histtype="step",
-                color=c_cross, lw=2.0, ls="--", label=f"{l_cross} ({frac_floor(R[k_cross]):.1%})")
+                color=c_cross, lw=2.6, ls="--", label=f"{l_cross} ({frac_floor(R[k_cross]):.1%})")
         ax.axvspan(bins[0], FLOOR, color="0.5", alpha=0.07, lw=0)
         ax.axvline(FLOOR, color="0.35", ls=":", lw=1.3)
         ax.text(FLOOR - 0.06, ax.get_ylim()[1] * 0.97, "case B (2.86)", rotation=90,
@@ -162,9 +163,9 @@ def main():
         ax.set_title(f"Evaluated on {cond} conditioning")
         ax.set_xlabel(r"Balmer decrement $R = F_{\mathrm{H}\alpha}/F_{\mathrm{H}\beta}$")
         ax.set_xlim(bins[0], bins[-1])
-        ax.legend(frameon=True, loc="upper right", title="(fraction below floor)",
-                  title_fontsize=15)
-    axes[0].set_ylabel("normalized density")
+        ax.legend(frameon=True, framealpha=0.9, loc="upper right",
+                  title="Fraction below floor:", title_fontsize=13)
+    axes[0].set_ylabel("Normalized density")
     for ext in ("png", "pdf"):
         Path(REPO + "figs").mkdir(exist_ok=True)
         out = REPO + f"figs/balmer_decrement_dist.{ext}"
