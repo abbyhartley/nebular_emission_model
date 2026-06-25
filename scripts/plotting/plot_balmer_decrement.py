@@ -125,41 +125,45 @@ def main():
         "grid.alpha": 0.25,
         "axes.titlesize": 15,
         "axes.labelsize": 16,
-        "legend.fontsize": 10.5,
+        "legend.fontsize": 15,
         "xtick.labelsize": 13,
         "ytick.labelsize": 13,
     })
-    # Okabe-Ito (colorblind friendly), shared with the BPT comparison figure
-    C_OBS   = "#0072B2"   # blue  -- observed data
-    C_IN    = "#009E73"   # green -- in-survey flow (tracks the data)
-    C_CROSS = "#CC79A7"   # pink  -- cross-survey flow (the deviant; ties to the bubblegum theme)
+    # Color encodes survey (colorblind friendly; pink shared with the BPT figure):
+    #   DESI = deep purple, SDSS = pink. Within a panel, the observed data (fill) and the
+    #   native in-survey flow (solid) take the panel-survey color; the foreign cross-survey
+    #   flow (dashed) takes the other survey's color.
+    C_DESI = "#5E3C99"   # deep purple
+    C_SDSS = "#CC79A7"   # pink
 
     bins = np.linspace(1.5, 8.0, 70)
     fig, axes = plt.subplots(1, 2, figsize=(10.6, 5.3), sharey=True, constrained_layout=True)
 
     panels = [
         ("DESI", "obs_desi", "dd", "sd",
-         r"Observed DESI", r"DESI$\rightarrow$DESI (in-survey)", r"SDSS$\rightarrow$DESI (cross)"),
+         r"Observed DESI", r"DESI$\rightarrow$DESI (in-survey)", r"SDSS$\rightarrow$DESI (cross)",
+         C_DESI, C_DESI, C_SDSS),
         ("SDSS", "obs_sdss", "ss", "ds",
-         r"Observed SDSS", r"SDSS$\rightarrow$SDSS (in-survey)", r"DESI$\rightarrow$SDSS (cross)"),
+         r"Observed SDSS", r"SDSS$\rightarrow$SDSS (in-survey)", r"DESI$\rightarrow$SDSS (cross)",
+         C_SDSS, C_SDSS, C_DESI),
     ]
-    for ax, (cond, k_obs, k_in, k_cross, l_obs, l_in, l_cross) in zip(axes, panels):
+    for ax, (cond, k_obs, k_in, k_cross, l_obs, l_in, l_cross, c_obs, c_in, c_cross) in zip(axes, panels):
         ax.hist(R[k_obs], bins=bins, density=True, histtype="stepfilled",
-                facecolor=C_OBS, edgecolor=C_OBS, alpha=0.30, lw=1.4,
+                facecolor=c_obs, edgecolor=c_obs, alpha=0.30, lw=1.4,
                 label=f"{l_obs} ({frac_floor(R[k_obs]):.1%})")
         ax.hist(R[k_in], bins=bins, density=True, histtype="step",
-                color=C_IN, lw=2.0, label=f"{l_in} ({frac_floor(R[k_in]):.1%})")
+                color=c_in, lw=2.0, label=f"{l_in} ({frac_floor(R[k_in]):.1%})")
         ax.hist(R[k_cross], bins=bins, density=True, histtype="step",
-                color=C_CROSS, lw=2.0, ls="--", label=f"{l_cross} ({frac_floor(R[k_cross]):.1%})")
+                color=c_cross, lw=2.0, ls="--", label=f"{l_cross} ({frac_floor(R[k_cross]):.1%})")
         ax.axvspan(bins[0], FLOOR, color="0.5", alpha=0.07, lw=0)
         ax.axvline(FLOOR, color="0.35", ls=":", lw=1.3)
         ax.text(FLOOR - 0.06, ax.get_ylim()[1] * 0.97, "case B (2.86)", rotation=90,
-                va="top", ha="right", fontsize=10, color="0.35")
+                va="top", ha="right", fontsize=15, color="0.35")
         ax.set_title(f"Evaluated on {cond} conditioning")
         ax.set_xlabel(r"Balmer decrement $R = F_{\mathrm{H}\alpha}/F_{\mathrm{H}\beta}$")
         ax.set_xlim(bins[0], bins[-1])
         ax.legend(frameon=True, loc="upper right", title="(fraction below floor)",
-                  title_fontsize=10.5)
+                  title_fontsize=15)
     axes[0].set_ylabel("normalized density")
     for ext in ("png", "pdf"):
         Path(REPO + "figs").mkdir(exist_ok=True)
