@@ -23,6 +23,7 @@ from flowjax.flows import block_neural_autoregressive_flow
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import scienceplots  # noqa: F401  (registers the "science" style)
 
 BASE = "/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/"
 REPO = BASE + "nebular_emission_model/"
@@ -114,11 +115,27 @@ def main():
         "ds": sample_R(flow_d, meta_d, df_sdss, seed=SEED + 40),     # DESI->SDSS cross
     }
 
-    plt.rcParams.update({"font.size": 11, "font.family": "serif",
-                         "mathtext.fontset": "dejavuserif", "axes.linewidth": 0.9})
+    # House style: SciencePlots + Okabe-Ito colorblind-safe palette (matches Fig. 2/4),
+    # large axis labels (>=15), square-ish panels matching the BPT comparison figure.
+    plt.style.use(["science", "no-latex"])
+    plt.rcParams.update({
+        "figure.dpi": 160,
+        "savefig.dpi": 250,
+        "axes.grid": True,
+        "grid.alpha": 0.25,
+        "axes.titlesize": 15,
+        "axes.labelsize": 16,
+        "legend.fontsize": 10.5,
+        "xtick.labelsize": 13,
+        "ytick.labelsize": 13,
+    })
+    # Okabe-Ito (colorblind friendly), shared with the BPT comparison figure
+    C_OBS   = "#0072B2"   # blue  -- observed data
+    C_IN    = "#009E73"   # green -- in-survey flow (tracks the data)
+    C_CROSS = "#CC79A7"   # pink  -- cross-survey flow (the deviant; ties to the bubblegum theme)
+
     bins = np.linspace(1.5, 8.0, 70)
-    C_OBS, C_IN, C_CROSS = "0.45", "#1f77b4", "#d62728"
-    fig, axes = plt.subplots(1, 2, figsize=(8.2, 3.5), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(10.6, 5.3), sharey=True, constrained_layout=True)
 
     panels = [
         ("DESI", "obs_desi", "dd", "sd",
@@ -127,27 +144,27 @@ def main():
          r"Observed SDSS", r"SDSS$\rightarrow$SDSS (in-survey)", r"DESI$\rightarrow$SDSS (cross)"),
     ]
     for ax, (cond, k_obs, k_in, k_cross, l_obs, l_in, l_cross) in zip(axes, panels):
-        ax.hist(R[k_obs], bins=bins, density=True,
-                histtype="stepfilled", color=C_OBS, alpha=0.35, label=f"{l_obs} ({frac_floor(R[k_obs]):.1%})")
-        ax.hist(R[k_in], bins=bins, density=True,
-                histtype="step", color=C_IN, lw=1.8, label=f"{l_in} ({frac_floor(R[k_in]):.1%})")
-        ax.hist(R[k_cross], bins=bins, density=True,
-                histtype="step", color=C_CROSS, lw=1.8, ls="--", label=f"{l_cross} ({frac_floor(R[k_cross]):.1%})")
-        ax.axvspan(bins[0], FLOOR, color="k", alpha=0.06, lw=0)
-        ax.axvline(FLOOR, color="k", ls=":", lw=1.2)
-        ax.text(FLOOR - 0.05, ax.get_ylim()[1] * 0.96, "case B (2.86)", rotation=90,
-                va="top", ha="right", fontsize=8.5, color="k")
-        ax.set_title(f"Evaluated on {cond} conditioning", fontsize=10.5)
+        ax.hist(R[k_obs], bins=bins, density=True, histtype="stepfilled",
+                facecolor=C_OBS, edgecolor=C_OBS, alpha=0.30, lw=1.4,
+                label=f"{l_obs} ({frac_floor(R[k_obs]):.1%})")
+        ax.hist(R[k_in], bins=bins, density=True, histtype="step",
+                color=C_IN, lw=2.0, label=f"{l_in} ({frac_floor(R[k_in]):.1%})")
+        ax.hist(R[k_cross], bins=bins, density=True, histtype="step",
+                color=C_CROSS, lw=2.0, ls="--", label=f"{l_cross} ({frac_floor(R[k_cross]):.1%})")
+        ax.axvspan(bins[0], FLOOR, color="0.5", alpha=0.07, lw=0)
+        ax.axvline(FLOOR, color="0.35", ls=":", lw=1.3)
+        ax.text(FLOOR - 0.06, ax.get_ylim()[1] * 0.97, "case B (2.86)", rotation=90,
+                va="top", ha="right", fontsize=10, color="0.35")
+        ax.set_title(f"Evaluated on {cond} conditioning")
         ax.set_xlabel(r"Balmer decrement $R = F_{\mathrm{H}\alpha}/F_{\mathrm{H}\beta}$")
         ax.set_xlim(bins[0], bins[-1])
-        ax.legend(fontsize=7.6, frameon=False, loc="upper right",
-                  title="(fraction below floor)", title_fontsize=7.6)
+        ax.legend(frameon=True, loc="upper right", title="(fraction below floor)",
+                  title_fontsize=10.5)
     axes[0].set_ylabel("normalized density")
-    fig.tight_layout()
     for ext in ("png", "pdf"):
-        out = REPO + f"figs/balmer_decrement_dist.{ext}"
         Path(REPO + "figs").mkdir(exist_ok=True)
-        fig.savefig(out, dpi=200, bbox_inches="tight")
+        out = REPO + f"figs/balmer_decrement_dist.{ext}"
+        fig.savefig(out, bbox_inches="tight")
         print("Wrote:", out)
 
 
