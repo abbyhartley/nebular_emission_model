@@ -2,7 +2,7 @@
 
 These keys are referenced in the updated manuscript and must exist in refs.bib
 before compiling (otherwise they render as bold "??"). Grouped by the pass that
-added them.
+added them. All optional pop-cosmos/GalSBI bibcodes are now RESOLVED.
 
 ## Step 1 (metrics + framing fixes)
 - `2001ApJ...556..121K`  — Kewley et al. 2001 (ApJ 556, 121): the "maximum starburst"
@@ -23,10 +23,20 @@ added them.
 - `2015arXiv150303757S`  — Spergel et al. 2015 (Roman/WFIRST).
 - `2011arXiv1110.3193L`  — Laureijs et al. 2011 (Euclid).
 - `2020ApJS..249....5A`  — Alsing et al. 2020, Speculator.
-- `alsing2024popcosmos`, `thorp2024popcosmos`   — pop-cosmos (MNEMONIC placeholders;
-  replace with the real Alsing+2024 / Thorp+2024 bibcodes).
-- `fischbacher2024galsbi`, `tortorelli2024galsbi` — GalSBI (MNEMONIC placeholders;
-  replace with the real Fischbacher+2024 / Tortorelli+2024 bibcodes).
+
+## Step 2c optional (pop-cosmos / GalSBI) — RESOLVED bibcodes
+- `alsing2024popcosmos`     -> bibcode 2024ApJS..274...12A ; arXiv 2402.00935
+  Alsing et al. 2024, ApJS 274, 12, "pop-cosmos: A Comprehensive Picture of the Galaxy
+  Population from COSMOS Data".
+- `thorp2024popcosmos`      -> bibcode 2024ApJ...975..145T ; arXiv 2406.19437
+  Thorp et al. 2024, ApJ 975, 145, "pop-cosmos: Scaleable Inference of Galaxy Properties
+  and Redshifts with a Data-driven Population Model".
+- `fischbacher2024galsbi`   -> bibcode 2024arXiv241208701F ; arXiv 2412.08701
+  Fischbacher, Kacprzak, Tortorelli et al. 2024, "GalSBI: Phenomenological galaxy
+  population model for cosmology using simulation-based inference".
+  (NOTE: `tortorelli2024galsbi` was DROPPED -- Tortorelli is a co-author on the Fischbacher
+  GalSBI paper, not a separate reference; the Conclusions now cite GalSBI with the single
+  Fischbacher key.)
 
 ## Remaining \plum to fill by hand (cannot be auto-resolved)
 - Acknowledgments: real NSF GRFP grant number + Stanford Graduate Fellowship wording.
