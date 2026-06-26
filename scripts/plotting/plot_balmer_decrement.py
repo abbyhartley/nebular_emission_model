@@ -129,13 +129,12 @@ def main():
         "xtick.labelsize": 13,
         "ytick.labelsize": 13,
     })
-    # Color encodes survey (colorblind friendly; pink shared with the BPT figure):
-    #   DESI = blue-violet, SDSS = pink. Within a panel, the observed data (fill) and the
-    #   native in-survey flow (solid) take the panel-survey color; the foreign cross-survey
-    #   flow (dashed) takes the other survey's color. The blue-violet is kept well separated
-    #   from the pink for colorblind readability.
-    C_DESI = "#3B4CC0"   # blue-violet
-    C_SDSS = "#CC79A7"   # pink
+    # Color encodes the comparison ROLE, identically in both panels (the panel title already
+    # states the survey). Blue = the native survey: observed data (fill) and in-survey flow
+    # (solid line), which overlap closely. Pink dashed = the foreign cross-survey flow.
+    # Blue vs pink is colorblind friendly; pink is shared with the BPT figure.
+    C_NATIVE = "#0072B2"   # blue: observed data + native in-survey flow
+    C_CROSS  = "#CC79A7"   # pink: foreign cross-survey flow
 
     bins = np.linspace(1.5, 8.0, 70)
     fig, axes = plt.subplots(1, 2, figsize=(10.6, 5.3), sharey=True, constrained_layout=True)
@@ -143,10 +142,10 @@ def main():
     panels = [
         ("DESI", "obs_desi", "dd", "sd",
          r"Observed DESI", r"DESI$\rightarrow$DESI (in-survey)", r"SDSS$\rightarrow$DESI (cross)",
-         C_DESI, C_DESI, C_SDSS),
+         C_NATIVE, C_NATIVE, C_CROSS),
         ("SDSS", "obs_sdss", "ss", "ds",
          r"Observed SDSS", r"SDSS$\rightarrow$SDSS (in-survey)", r"DESI$\rightarrow$SDSS (cross)",
-         C_SDSS, C_SDSS, C_DESI),
+         C_NATIVE, C_NATIVE, C_CROSS),
     ]
     for ax, (cond, k_obs, k_in, k_cross, l_obs, l_in, l_cross, c_obs, c_in, c_cross) in zip(axes, panels):
         ax.hist(R[k_obs], bins=bins, density=True, histtype="stepfilled",
