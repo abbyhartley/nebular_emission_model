@@ -44,7 +44,7 @@ EPOCHS = 200
 BATCH = 2048
 LR = 3e-4
 CLIP = 1.0
-NMC = 40
+NMC = 50
 TEST_FRAC = 0.2
 
 LABELS8 = [r"H$\beta$", r"H$\gamma$", r"[N II]", r"[S II]$_{6717}$", r"[S II]$_{6731}$",

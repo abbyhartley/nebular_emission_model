@@ -37,7 +37,7 @@ EPOCHS = 200
 BATCH = 2048
 LR = 3e-4
 CLIP = 1.0
-NMC = 30
+NMC = 50
 
 CFG = {
     "sdss": dict(fits=BASE + "SDSS_main_training_data.fits", meta=REPO / "nf_sdss_main_meta.pkl", z="Z_1"),
