@@ -1,31 +1,32 @@
 """
-Dust-insensitive coverage test: is the observed distribution contained in the
-Byler+2017 grid's envelope in the 3-D space of the three dust-insensitive ratios
-[N II]/Ha, [O III]/Hb, [S II]/Ha (no dereddening needed; 3 grid parameters -> a
-3-D image that can fill a 3-D volume, so the test is well posed).
-Reports the out-of-hull fraction, splits it by BPT class, and colors the data by
-in/out of the 3-D hull. Kewley01 / Kauffmann03 curves drawn on the BPT panel.
+Dust-insensitive 3-D coverage of the data by the Byler+2017 grid, in
+([N II]/Ha, [O III]/Hb, [S II]/Ha). In/out membership is computed in the FULL 3-D
+space (so a point can lie within a 2-D projection of the grid yet be outside the
+3-D envelope). No 2-D hull outline is drawn, to avoid implying a 2-D boundary.
 """
 import os
 os.environ.setdefault("SPS_HOME", "/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/FSPS")
 import pickle
 import numpy as np, pandas as pd
 from astropy.table import Table
-from scipy.spatial import Delaunay, ConvexHull
+from scipy.spatial import Delaunay
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import scienceplots  # noqa
+import cmasher as cmr
 
 BASE = "/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/"
 REPO = BASE + "nebular_emission_model/"
-S = dict(name="SDSS", fits=BASE+"SDSS_main_training_data.fits", meta=REPO+"nf_sdss_main_meta.pkl", c="#0072B2")
-D = dict(name="DESI", fits=BASE+"DESI_BGS_training_data.fits", meta=REPO+"nf_desi_bgs_meta.pkl", c="#E69F00")
+BG = cmr.bubblegum
+GRID_C, OUT_C, IN_C = BG(0.10), BG(0.66), "0.78"
+S = dict(name="SDSS", fits=BASE+"SDSS_main_training_data.fits", meta=REPO+"nf_sdss_main_meta.pkl")
+D = dict(name="DESI", fits=BASE+"DESI_BGS_training_data.fits", meta=REPO+"nf_desi_bgs_meta.pkl")
+LIM = dict(nii_ha=(-1.8, 0.4), oiii_hb=(-1.5, 1.3), sii_ha=(-1.8, 0.4))
 
 def load_scalar_df(p):
     t=Table.read(p,hdu=1); return t[[n for n in t.colnames if len(t[n].shape)<=1]].to_pandas()
 
 def get_ratios(fits, metap):
-    """Dust-insensitive ratios only -> no dereddening required."""
     meta=pickle.load(open(metap,"rb")); df=load_scalar_df(fits)
     tcols=meta["resolved"]["target_cols"]; raw=[c[6:] if c.startswith("LOG10_") else c for c in tcols]
     hacol=next(c for c in ["H_ALPHA_FLUX","HALPHA_FLUX"] if c in df.columns); U=[c.upper() for c in raw]
@@ -40,53 +41,41 @@ def get_ratios(fits, metap):
     return pd.DataFrame(dict(nii_ha=np.log10(F["NII"]/F["Ha"]),
         oiii_hb=np.log10(F["OIII"]/F["Hb"]), sii_ha=np.log10((F["SII16"]+F["SII31"])/F["Ha"])))
 
-grid = pd.read_csv(REPO+"docs/byler_grid.csv")
-cols3 = ["nii_ha","oiii_hb","sii_ha"]
-hull3 = Delaunay(grid[cols3].to_numpy())
-dat = {c["name"]: get_ratios(c["fits"], c["meta"]) for c in (S,D)}
+grid=pd.read_csv(REPO+"docs/byler_grid.csv"); cols3=["nii_ha","oiii_hb","sii_ha"]
+hull3=Delaunay(grid[cols3].to_numpy())
+dat={c["name"]: get_ratios(c["fits"], c["meta"]) for c in (S,D)}
 
-def kau(x): return np.where(x<0.05, 0.61/(x-0.05)+1.30, -np.inf)   # Kauffmann03 (SF/composite)
-def kew(x): return np.where(x<0.47, 0.61/(x-0.47)+1.19, -np.inf)   # Kewley01 (max starburst)
+def kau(x): return np.where(x<0.05,0.61/(x-0.05)+1.30,np.nan)
+def kew(x): return np.where(x<0.47,0.61/(x-0.47)+1.19,np.nan)
+def curve(fn, xlo, xhi, ylim):
+    x=np.linspace(xlo,xhi,600); y=fn(x); y[(y<ylim[0])|(y>ylim[1])]=np.nan; return x,y
 
-print("=== 3-D dust-insensitive ([NII]/Ha,[OIII]/Hb,[SII]/Ha) coverage ===")
-outmask={}
-for nm,d in dat.items():
-    inside = hull3.find_simplex(d[cols3].to_numpy())>=0
-    out = ~inside; outmask[nm]=out
-    agn_comp = d["oiii_hb"].to_numpy() > kau(d["nii_ha"].to_numpy())   # above Kauffmann = composite/AGN
-    sf = ~agn_comp
-    print(f"  {nm}: out-of-hull = {out.mean():.1%}  (N={len(d)})")
-    print(f"        of the out-of-hull galaxies, {(agn_comp&out).sum()/max(out.sum(),1):.0%} are composite/AGN (above Kauffmann03)")
-    print(f"        out-of-hull among SF-only (below Kauffmann03) = {(out&sf).sum()/max(sf.sum(),1):.1%}")
-
-# figure: 3 dust-insensitive planes; data colored in(gray)/out(red); grid + 2D hull; curves on BPT
 planes=[("nii_ha","oiii_hb",r"$\log$([N II]/H$\alpha$)",r"$\log$([O III]/H$\beta$)"),
         ("nii_ha","sii_ha", r"$\log$([N II]/H$\alpha$)",r"$\log$([S II]/H$\alpha$)"),
         ("oiii_hb","sii_ha",r"$\log$([O III]/H$\beta$)",r"$\log$([S II]/H$\alpha$)")]
 plt.style.use(["science","no-latex"])
-plt.rcParams.update({"axes.labelsize":13,"xtick.labelsize":10,"ytick.labelsize":10,"legend.fontsize":9,"axes.titlesize":11})
+plt.rcParams.update({"axes.labelsize":13,"xtick.labelsize":10,"ytick.labelsize":10,"legend.fontsize":9,"axes.titlesize":12})
 rng=np.random.default_rng(0)
-for nm,c in [("SDSS",S),("DESI",D)]:
-    d=dat[nm]; out=outmask[nm]
+print("=== 3-D dust-insensitive coverage ===")
+for nm in ("SDSS","DESI"):
+    d=dat[nm]; out=hull3.find_simplex(d[cols3].to_numpy())<0
+    nii_=d["nii_ha"].to_numpy(); agn=(nii_>=0.05)|(d["oiii_hb"].to_numpy()>kau(nii_))  # >=0.05 is right of the Kauffmann asymptote
+    print(f"  {nm}: out={out.mean():.1%}; of out, {(agn&out).sum()/max(out.sum(),1):.0%} composite/AGN; SF-only out={(out&~agn).sum()/max((~agn).sum(),1):.1%}")
     fig,axes=plt.subplots(1,3,figsize=(16.5,5.3),constrained_layout=True)
+    idx=rng.choice(len(d),size=min(30000,len(d)),replace=False)
+    ii=idx[~out[idx]]; oo=idx[out[idx]]
     for ax,(cx,cy,lx,ly) in zip(axes,planes):
-        gx,gy=grid[cx].to_numpy(),grid[cy].to_numpy()
-        ch=ConvexHull(np.column_stack([gx,gy]))
-        for s in ch.simplices: ax.plot(np.column_stack([gx,gy])[s,0],np.column_stack([gx,gy])[s,1],color="0.5",lw=0.9)
-        idx=rng.choice(len(d),size=min(30000,len(d)),replace=False)
-        ii=idx[~out[idx]]; oo=idx[out[idx]]
-        ax.scatter(d[cx].to_numpy()[ii],d[cy].to_numpy()[ii],s=2,alpha=0.05,color="0.6",rasterized=True)
-        ax.scatter(d[cx].to_numpy()[oo],d[cy].to_numpy()[oo],s=3,alpha=0.20,color="#D55E00",rasterized=True)
-        ax.scatter(gx,gy,s=7,color="k",alpha=0.55,zorder=5)
+        ax.scatter(grid[cx],grid[cy],s=9,color=GRID_C,alpha=0.7,edgecolors="none",zorder=1,label="Byler grid")
+        ax.scatter(d[cx].to_numpy()[ii],d[cy].to_numpy()[ii],s=2,alpha=0.06,color=IN_C,rasterized=True,zorder=2)
+        ax.scatter(d[cx].to_numpy()[oo],d[cy].to_numpy()[oo],s=4,alpha=0.30,color=OUT_C,rasterized=True,zorder=3)
         if (cx,cy)==("nii_ha","oiii_hb"):
-            xs=np.linspace(-1.8,0.0,200)
-            ax.plot(xs,kau(xs),"b--",lw=1.5,label="Kauffmann03");
-            xk=np.linspace(-1.8,0.4,200); ax.plot(xk,kew(xk),"g-.",lw=1.5,label="Kewley01")
-            ax.legend(loc="lower left")
-        ax.set_xlabel(lx); ax.set_ylabel(ly)
-    ax=axes[0]
-    ax.scatter([],[],color="0.6",label="in grid hull"); ax.scatter([],[],color="#D55E00",label=f"outside hull ({out.mean():.0%})")
-    ax.scatter([],[],color="k",label="Byler grid"); ax.legend(loc="upper left")
-    fig.suptitle(f"{nm}: dust-insensitive 3-D coverage by the Byler+2017 grid (out-of-hull galaxies in orange)",fontsize=13)
-    for e in ("png","pdf"): fig.savefig(REPO+f"figs/byler_3d_{nm.lower()}.{e}",dpi=160,bbox_inches="tight")
-    print(f"Wrote figs/byler_3d_{nm.lower()}.png")
+            xk,yk=curve(kau,-1.9,0.049,LIM["oiii_hb"]); ax.plot(xk,yk,"--",color="k",lw=1.4,label="Kauffmann03")
+            xe,ye=curve(kew,-1.9,0.469,LIM["oiii_hb"]); ax.plot(xe,ye,"-.",color="k",lw=1.4,label="Kewley01")
+        ax.set_xlim(*LIM[cx]); ax.set_ylim(*LIM[cy]); ax.set_xlabel(lx); ax.set_ylabel(ly)
+    h=[plt.Line2D([],[],marker="o",ls="",color=GRID_C,label="Byler grid"),
+       plt.Line2D([],[],marker="o",ls="",color=IN_C,label="galaxy, in grid hull"),
+       plt.Line2D([],[],marker="o",ls="",color=OUT_C,label=f"galaxy, outside hull ({out.mean():.0%})")]
+    axes[0].legend(handles=h,loc="upper left")
+    fig.suptitle(f"{nm}: dust-insensitive 3-D coverage by the Byler+2017 grid  (membership from full 3-D)",fontsize=13)
+    for e in ("png","pdf"): fig.savefig(REPO+f"figs/byler_3d_{nm.lower()}.{e}",dpi=170,bbox_inches="tight")
+    print(f"  Wrote figs/byler_3d_{nm.lower()}.png")

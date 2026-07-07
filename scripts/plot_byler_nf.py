@@ -1,9 +1,7 @@
 """
-Overlay normalizing-flow samples on the Byler grid in the dust-insensitive 3-D
-space. Question: does the flow GENERATE the regions the grid cannot reach (the
-AGN/composite wing) that real galaxies occupy? Reports the out-of-hull fraction
-for the data and for NF samples (should match), and shows NF samples colored by
-in/out of the grid's 3-D convex hull.
+Overlay NF samples on the Byler grid in the dust-insensitive 3-D space and show
+that the flow GENERATES the regions the grid cannot reach (the AGN/composite wing).
+Membership computed in full 3-D; no 2-D hull outline; tight axes; bubblegum scheme.
 """
 import os
 os.environ.setdefault("SPS_HOME", "/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/FSPS")
@@ -13,16 +11,20 @@ import jax, jax.numpy as jnp, jax.random as jr
 import equinox as eqx
 from astropy.table import Table
 from astropy.cosmology import Planck15 as cosmo
-from scipy.spatial import Delaunay, ConvexHull
+from scipy.spatial import Delaunay
 from flowjax.distributions import Normal
 from flowjax.flows import block_neural_autoregressive_flow
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import scienceplots  # noqa
+import cmasher as cmr
 
 BASE = "/oak/stanford/groups/cyaolai/AbbyHartley/gfc_NFs/"
 REPO = BASE + "nebular_emission_model/"
+BG = cmr.bubblegum
+GRID_C, OUT_C, IN_C = BG(0.10), BG(0.66), "0.78"
 FLUX_SCALE=1e-17; SEED=0; NSAMP=30000
+LIM = dict(nii_ha=(-1.8, 0.4), oiii_hb=(-1.5, 1.3), sii_ha=(-1.8, 0.4))
 S = dict(name="SDSS", fits=BASE+"SDSS_main_training_data.fits", eqx=REPO+"nf_sdss_main.eqx", meta=REPO+"nf_sdss_main_meta.pkl")
 D = dict(name="DESI", fits=BASE+"DESI_BGS_training_data.fits", eqx=REPO+"nf_desi_bgs.eqx", meta=REPO+"nf_desi_bgs_meta.pkl")
 
@@ -61,39 +63,39 @@ def nf_ratios(flow, meta, Ucond):
     keys=jr.split(jr.key(SEED+3), len(Uc))
     Xn=np.array(jax.vmap(lambda k,u: flow.sample(k, sample_shape=(), condition=u))(keys, jnp.asarray(Un)))
     X=Xn*meta["X_std"]+meta["X_mean"]
-    return pd.DataFrame(dict(nii_ha=X[:,inii], oiii_hb=X[:,ioiii]-X[:,ihb],
-                             sii_ha=np.log10(10**X[:,is16]+10**X[:,is31])))
+    return pd.DataFrame(dict(nii_ha=X[:,inii], oiii_hb=X[:,ioiii]-X[:,ihb], sii_ha=np.log10(10**X[:,is16]+10**X[:,is31])))
 
 grid=pd.read_csv(REPO+"docs/byler_grid.csv"); cols3=["nii_ha","oiii_hb","sii_ha"]
 hull3=Delaunay(grid[cols3].to_numpy())
-def kau(x): return np.where(x<0.05,0.61/(x-0.05)+1.30,-np.inf)
-def kew(x): return np.where(x<0.47,0.61/(x-0.47)+1.19,-np.inf)
+def kau(x): return np.where(x<0.05,0.61/(x-0.05)+1.30,np.nan)
+def kew(x): return np.where(x<0.47,0.61/(x-0.47)+1.19,np.nan)
+def curve(fn,xlo,xhi,ylim):
+    x=np.linspace(xlo,xhi,600); y=fn(x); y[(y<ylim[0])|(y>ylim[1])]=np.nan; return x,y
 planes=[("nii_ha","oiii_hb",r"$\log$([N II]/H$\alpha$)",r"$\log$([O III]/H$\beta$)"),
         ("nii_ha","sii_ha", r"$\log$([N II]/H$\alpha$)",r"$\log$([S II]/H$\alpha$)"),
         ("oiii_hb","sii_ha",r"$\log$([O III]/H$\beta$)",r"$\log$([S II]/H$\alpha$)")]
-plt.style.use(["science","no-latex"]); plt.rcParams.update({"axes.labelsize":13,"legend.fontsize":9,"axes.titlesize":11})
+plt.style.use(["science","no-latex"]); plt.rcParams.update({"axes.labelsize":13,"xtick.labelsize":10,"ytick.labelsize":10,"legend.fontsize":9,"axes.titlesize":12})
 
-print("=== 3-D dust-insensitive out-of-hull: data vs NF samples ===")
+print("=== 3-D dust-insensitive out-of-hull: data vs NF ===")
 for c in (S,D):
     Rdat, Ucond, meta = data_ratios(c["fits"], c["meta"], c["name"].lower())
-    flow=load_flow(c["eqx"], meta)
-    Rnf = nf_ratios(flow, meta, Ucond)
-    d_out=(hull3.find_simplex(Rdat[cols3].to_numpy())>=0)==False
-    n_out=(hull3.find_simplex(Rnf[cols3].to_numpy())>=0)==False
-    print(f"  {c['name']}: data out={d_out.mean():.1%} (N={len(Rdat)}) ;  NF out={n_out.mean():.1%} (N={len(Rnf)})")
+    Rnf = nf_ratios(load_flow(c["eqx"], meta), meta, Ucond)
+    d_out=hull3.find_simplex(Rdat[cols3].to_numpy())<0
+    n_out=hull3.find_simplex(Rnf[cols3].to_numpy())<0
+    print(f"  {c['name']}: data out={d_out.mean():.1%} ; NF out={n_out.mean():.1%}")
     fig,axes=plt.subplots(1,3,figsize=(16.5,5.3),constrained_layout=True)
     for ax,(cx,cy,lx,ly) in zip(axes,planes):
-        gx,gy=grid[cx].to_numpy(),grid[cy].to_numpy(); ch=ConvexHull(np.column_stack([gx,gy]))
-        for s in ch.simplices: ax.plot(np.column_stack([gx,gy])[s,0],np.column_stack([gx,gy])[s,1],color="0.5",lw=0.9)
-        ax.scatter(Rnf[cx].to_numpy()[~n_out],Rnf[cy].to_numpy()[~n_out],s=3,alpha=0.12,color="0.6",rasterized=True)
-        ax.scatter(Rnf[cx].to_numpy()[n_out],Rnf[cy].to_numpy()[n_out],s=4,alpha=0.30,color="#009E73",rasterized=True)
-        ax.scatter(gx,gy,s=7,color="k",alpha=0.55,zorder=5)
+        ax.scatter(grid[cx],grid[cy],s=9,color=GRID_C,alpha=0.7,edgecolors="none",zorder=1)
+        ax.scatter(Rnf[cx].to_numpy()[~n_out],Rnf[cy].to_numpy()[~n_out],s=3,alpha=0.10,color=IN_C,rasterized=True,zorder=2)
+        ax.scatter(Rnf[cx].to_numpy()[n_out],Rnf[cy].to_numpy()[n_out],s=4,alpha=0.30,color=OUT_C,rasterized=True,zorder=3)
         if (cx,cy)==("nii_ha","oiii_hb"):
-            xs=np.linspace(-1.8,0.0,200); ax.plot(xs,kau(xs),"b--",lw=1.4)
-            xk=np.linspace(-1.8,0.4,200); ax.plot(xk,kew(xk),"m-.",lw=1.4)
-        ax.set_xlabel(lx); ax.set_ylabel(ly)
-    axes[0].scatter([],[],color="0.6",label="NF sample, in hull"); axes[0].scatter([],[],color="#009E73",label=f"NF sample, outside ({n_out.mean():.0%})")
-    axes[0].scatter([],[],color="k",label="Byler grid"); axes[0].legend(loc="lower left")
+            xk,yk=curve(kau,-1.9,0.049,LIM["oiii_hb"]); ax.plot(xk,yk,"--",color="k",lw=1.4)
+            xe,ye=curve(kew,-1.9,0.469,LIM["oiii_hb"]); ax.plot(xe,ye,"-.",color="k",lw=1.4)
+        ax.set_xlim(*LIM[cx]); ax.set_ylim(*LIM[cy]); ax.set_xlabel(lx); ax.set_ylabel(ly)
+    h=[plt.Line2D([],[],marker="o",ls="",color=GRID_C,label="Byler grid"),
+       plt.Line2D([],[],marker="o",ls="",color=IN_C,label="NF sample, in grid hull"),
+       plt.Line2D([],[],marker="o",ls="",color=OUT_C,label=f"NF sample, outside ({n_out.mean():.0%})")]
+    axes[0].legend(handles=h,loc="upper left")
     fig.suptitle(f"{c['name']}: NF samples fill the grid gap  (NF out {n_out.mean():.0%}, data out {d_out.mean():.0%})",fontsize=13)
-    for e in ("png","pdf"): fig.savefig(REPO+f"figs/byler_nf_{c['name'].lower()}.{e}",dpi=160,bbox_inches="tight")
+    for e in ("png","pdf"): fig.savefig(REPO+f"figs/byler_nf_{c['name'].lower()}.{e}",dpi=170,bbox_inches="tight")
     print(f"  Wrote figs/byler_nf_{c['name'].lower()}.png")
