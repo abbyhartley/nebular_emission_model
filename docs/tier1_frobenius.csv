@@ -3,7 +3,7 @@ SDSS,NF (this work),0.5943
 SDSS,Cond. Gaussian,0.0197
 SDSS,Indep. + noise,2.5334
 SDSS,Shuffle,4.0815
-DESI,NF (this work),0.1660
-DESI,Cond. Gaussian,0.0152
-DESI,Indep. + noise,2.8571
-DESI,Shuffle,3.9249
+DESI,NF (this work),0.2015
+DESI,Cond. Gaussian,0.0114
+DESI,Indep. + noise,2.6560
+DESI,Shuffle,3.9230
