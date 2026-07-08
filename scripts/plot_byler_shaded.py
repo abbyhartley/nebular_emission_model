@@ -81,13 +81,13 @@ def make_fig(R, name, tag):
     rng=np.random.default_rng(1); idx=rng.choice(len(R),size=min(40000,len(R)),replace=False)
     for ax,(cx,cy,lx,ly) in zip(axes,planes):
         xe,ye,m=REG[(cx,cy)]; xc=0.5*(xe[:-1]+xe[1:]); yc=0.5*(ye[:-1]+ye[1:])
-        ax.contourf(xc,yc,m.T.astype(float),levels=[0.5,1.5],colors=[REGION_C],alpha=0.22,zorder=0)
-        ax.contour(xc,yc,m.T.astype(float),levels=[0.5],colors=[BG(0.12)],linewidths=0.8,alpha=0.6,zorder=1)
         out=~inside(xe,ye,m,R[cx].to_numpy(),R[cy].to_numpy()); outpcts.append(out.mean())
-        ax.scatter(R[cx].to_numpy()[idx],R[cy].to_numpy()[idx],s=1.5,alpha=0.35,color="k",rasterized=True,zorder=2)
+        ax.scatter(R[cx].to_numpy()[idx],R[cy].to_numpy()[idx],s=1.5,alpha=0.4,color="k",rasterized=True,zorder=1)
+        ax.contourf(xc,yc,m.T.astype(float),levels=[0.5,1.5],colors=[REGION_C],alpha=0.30,zorder=3)  # region ON TOP so the boundary reads
+        ax.contour(xc,yc,m.T.astype(float),levels=[0.5],colors=[BG(0.05)],linewidths=1.4,alpha=0.9,zorder=5)
         if (cx,cy)==("nii_ha","oiii_hb"):
-            xk,yk=cclip(kau,-1.9,0.049,LIM["oiii_hb"]); ax.plot(xk,yk,"--",color="#555555",lw=1.3,label="Kauffmann03")
-            xv,yv=cclip(kew,-1.9,0.469,LIM["oiii_hb"]); ax.plot(xv,yv,"-.",color="#555555",lw=1.3,label="Kewley01"); ax.legend(loc="lower left")
+            xk,yk=cclip(kau,-1.9,0.049,LIM["oiii_hb"]); ax.plot(xk,yk,"--",color="#333333",lw=1.3,zorder=6,label="Kauffmann03")
+            xv,yv=cclip(kew,-1.9,0.469,LIM["oiii_hb"]); ax.plot(xv,yv,"-.",color="#333333",lw=1.3,zorder=6,label="Kewley01"); ax.legend(loc="lower left")
         ax.set_xlim(*LIM[cx]); ax.set_ylim(*LIM[cy]); ax.set_xlabel(lx); ax.set_ylabel(ly)
     h=[plt.matplotlib.patches.Patch(color=REGION_C,alpha=0.5,label="Byler grid (reachable region)"),
        plt.Line2D([],[],marker="o",ls="",color="k",label=f"{name} {tag}")]
