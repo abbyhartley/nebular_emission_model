@@ -5,10 +5,35 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "normflow"
 version = "0.1.0"
-description = "Utilities for survey-transferable generative model of nebular emission statistics"
+description = "An empirical, survey-transferable generative model of galaxy nebular emission line ratios"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["numpy", "astropy"]
+license = {file = "LICENSE"}
+authors = [
+    {name = "Abigail I. Hartley", email = "hartley1@stanford.edu"},
+    {name = "Suchetha Cooray"},
+    {name = "Risa H. Wechsler"},
+]
+keywords = ["astronomy", "galaxies", "emission lines", "normalizing flows", "DESI", "SDSS"]
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "astropy>=5.3",
+    "pandas>=2.0",
+    "jax>=0.4.30",
+    "flowjax>=17.2,<18",   # v17.2.1 used for the published models; the API moves between majors
+    "equinox>=0.11",
+    "optax>=0.2",
+]
+
+[project.optional-dependencies]
+plots = ["matplotlib>=3.8", "SciencePlots>=2.1", "cmasher>=1.8", "corner>=2.2"]
+extras = ["pyarrow>=14"]          # UniverseMachine parquet catalogs
+grids  = ["fsps"]                 # Byler/Cue photoionization grid generation only
+dev    = ["pytest>=7"]
+
+[project.urls]
+Repository = "https://github.com/abbyhartley/nebular_emission_model"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

@@ -27,3 +27,11 @@ try:
 except Exception:
     # selection API may differ across versions; import from normflow.selection directly if needed
     pass
+
+# Model loading / sampling helpers
+try:
+    from .io import load_flow, sample_line_ratios, line_names, log_prob
+    __all__ += ['load_flow', 'sample_line_ratios', 'line_names', 'log_prob']
+except Exception:
+    # jax/flowjax are optional at import time; import from normflow.io directly if needed
+    pass

@@ -34,3 +34,11 @@ nf_*_HAscale*
 
 # generated raw Balmer samples (regenerable)
 balmer_obs_samples.csv
+
+# Local-only: internal notes + superseded model weights (not for public release)
+private/
+
+# Generated figure outputs
+figs_ALTB/
+figs/
+*.bak_*
